@@ -11,19 +11,52 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_FILE = BASE_DIR / '.env'
+
+
+def read_env_value(name, default=None):
+    if not ENV_FILE.exists():
+        return default
+
+    for line in ENV_FILE.read_text().splitlines():
+        entry = line.strip()
+        if not entry or entry.startswith('#') or '=' not in entry:
+            continue
+
+        key, value = entry.split('=', 1)
+        if key.strip() == name:
+            return value.strip().strip("\"'")
+
+    return default
+
+
+def read_env_bool(name, default=False):
+    value = read_env_value(name)
+    if value is None:
+        return default
+
+    normalized = value.strip().lower()
+    if normalized in {'1', 'true', 't', 'yes', 'y', 'on'}:
+        return True
+    if normalized in {'0', 'false', 'f', 'no', 'n', 'off'}:
+        return False
+    return default
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-m69c8i@q@^^x!+#ikzh+m(=l4oq7njdsgm7)iet8a3i44i5681'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Read DEBUG directly from the project's .env file so a conflicting
+# machine-level DEBUG variable does not break Django startup.
+DEBUG = read_env_bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
 
@@ -75,11 +108,15 @@ WSGI_APPLICATION = 'myblog.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+     'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
-}
+}   
 
 
 # Password validation
